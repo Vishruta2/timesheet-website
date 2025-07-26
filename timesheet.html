@@ -235,8 +235,13 @@
             });
 
     document.getElementById('downloadPdfBtn').addEventListener('click', function() {
-        const tableContainer = document.getElementById('tableContainer');
-        html2canvas(tableContainer).then(canvas => {
+        // Capture the entire page including navbar and logo
+        html2canvas(document.body, {
+            allowTaint: true,
+            useCORS: true,
+            scale: 2,
+            backgroundColor: '#f2f2f2'
+        }).then(canvas => {
             const imgData = canvas.toDataURL('image/png');
             const pdf = new window.jspdf.jsPDF({
                 orientation: 'landscape',
@@ -247,8 +252,11 @@
             const pageHeight = pdf.internal.pageSize.getHeight();
             const imgWidth = pageWidth - 40;
             const imgHeight = canvas.height * imgWidth / canvas.width;
-            pdf.addImage(imgData, 'PNG', 20, 20, imgWidth, imgHeight);
-            pdf.save('timesheet.pdf');
+            
+            // Add the captured image starting below the title
+            pdf.addImage(imgData, 'PNG', 20, 50, imgWidth, imgHeight);
+            
+            pdf.save('vishruta-timesheet.pdf');
         });
     });
     </script>
