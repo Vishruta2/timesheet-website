@@ -69,6 +69,32 @@
         >
             ⬇️ Download
         </button>
+        <button id="showMonthlyBtn"
+            style="
+                margin-bottom: 20px;
+                margin-right: 10px;
+                position: static;
+                display: block;
+                float: right;
+                top: auto;
+                right: auto;
+                padding: 8px 20px;
+                font-size: 15px;
+                background: #ff6b35;
+                color: #fff;
+                border: none;
+                border-radius: 6px;
+                box-shadow: 0 2px 8px rgba(255,107,53,0.10);
+                cursor: pointer;
+                font-weight: bold;
+                letter-spacing: 0.5px;
+                transition: background 0.3s, transform 0.2s;
+            "
+            onmouseover="this.style.background='#e55a2b'; this.style.transform='scale(1.05)';"
+            onmouseout="this.style.background='#ff6b35'; this.style.transform='scale(1)';"
+        >
+            📊 Show Monthly Data
+        </button>
         <div id="tableContainer">Loading timesheet...</div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -258,6 +284,70 @@
             
             pdf.save('vishruta-timesheet.pdf');
         });
+    });
+
+    document.getElementById('showMonthlyBtn').addEventListener('click', function() {
+        // Get the selected date from the date filter
+        const dateFilter = document.querySelector('input[type="date"]');
+        const selectedDate = dateFilter ? dateFilter.value : '';
+        
+        if (!selectedDate) {
+            alert('Please select a date first to show monthly data');
+            return;
+        }
+        
+        // Calculate the first and last day of the selected month
+        const date = new Date(selectedDate);
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        
+        // Filter data for the entire month
+        const headerRow = allRows[0];
+        const dateColIdx = headerRow.indexOf('📆 Choose Date');
+        
+        const monthlyData = allRows.slice(1).filter(row => {
+            const rowDateStr = row[dateColIdx];
+            if (!rowDateStr) return false;
+            
+            // Try to parse the date string
+            let rowDate;
+            if (rowDateStr.includes('/')) {
+                // Handle MM/DD/YYYY or DD/MM/YYYY format
+                const parts = rowDateStr.split('/');
+                if (parts.length === 3) {
+                    const [m, d, y] = parts;
+                    rowDate = new Date(y, m - 1, d);
+                }
+            } else {
+                // Handle YYYY-MM-DD format
+                rowDate = new Date(rowDateStr);
+            }
+            
+            if (isNaN(rowDate.getTime())) return false;
+            
+            return rowDate >= firstDay && rowDate <= lastDay;
+        });
+        
+        if (monthlyData.length === 0) {
+            alert('No data found for the selected month. Please check the date format in your data.');
+            return;
+        }
+        
+        // Create a new array with header and monthly data
+        const monthlyRows = [headerRow, ...monthlyData];
+        
+        // Update the page title to show it's monthly data
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                           'July', 'August', 'September', 'October', 'November', 'December'];
+        const monthName = monthNames[month];
+        document.getElementById('sheetTitle').textContent = `Employee Timesheet - ${monthName} ${year} (${monthlyData.length} entries)`;
+        
+        // Render the monthly data in the table
+        renderTable(monthlyRows, {});
+        
+        // Remove the success message alert
     });
     </script>
 </body>
