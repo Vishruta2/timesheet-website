@@ -69,32 +69,7 @@
         >
             ⬇️ Download
         </button>
-        <button id="showMonthlyBtn"
-            style="
-                margin-bottom: 20px;
-                margin-right: 10px;
-                position: static;
-                display: block;
-                float: right;
-                top: auto;
-                right: auto;
-                padding: 8px 20px;
-                font-size: 15px;
-                background: #ff6b35;
-                color: #fff;
-                border: none;
-                border-radius: 6px;
-                box-shadow: 0 2px 8px rgba(255,107,53,0.10);
-                cursor: pointer;
-                font-weight: bold;
-                letter-spacing: 0.5px;
-                transition: background 0.3s, transform 0.2s;
-            "
-            onmouseover="this.style.background='#e55a2b'; this.style.transform='scale(1.05)';"
-            onmouseout="this.style.background='#ff6b35'; this.style.transform='scale(1)';"
-        >
-            📊 Show Monthly Data
-        </button>
+
         <div id="tableContainer">Loading timesheet...</div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -154,10 +129,38 @@
             let filteredRows = rows.slice(1).filter((row, rowIdx) =>
                 colIndices.every((colIdx, i) => {
                     const filterVal = filters[colIdx];
-                    if (!filterVal) return true;
+                    const startDateFilter = filters[colIdx + '_start'];
+                    const endDateFilter = filters[colIdx + '_end'];
+                    
                     if (headerRow[colIdx] === '📆 Choose Date') {
-                        return normalizeDate(row[colIdx]) === filterVal;
+                        // Handle date range filtering
+                        if (startDateFilter || endDateFilter) {
+                            const rowDate = normalizeDate(row[colIdx]);
+                            if (!rowDate) return false;
+                            
+                            const rowDateObj = new Date(rowDate);
+                            if (isNaN(rowDateObj.getTime())) return false;
+                            
+                            if (startDateFilter) {
+                                const startDate = new Date(startDateFilter);
+                                if (rowDateObj < startDate) return false;
+                            }
+                            
+                            if (endDateFilter) {
+                                const endDate = new Date(endDateFilter);
+                                if (rowDateObj > endDate) return false;
+                            }
+                            
+                            return true;
+                        } else if (filterVal) {
+                            // Handle single date filter (backward compatibility)
+                            return normalizeDate(row[colIdx]) === filterVal;
+                        }
+                        return true;
                     }
+                    
+                    // Handle other column filters
+                    if (!filterVal) return true;
                     return row[colIdx] === filterVal;
                 })
             );
@@ -173,11 +176,17 @@
                              </div></th>`;
                 } else if (col.key === '📆 Choose Date') {
                     const colIdx = headerRow.indexOf(col.key);
-                    const filterVal = filters[colIdx] || '';
+                    const startDateFilter = filters[colIdx + '_start'] || '';
+                    const endDateFilter = filters[colIdx + '_end'] || '';
                     html += `<th>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; flex-direction: column; gap: 4px;">
                             <span>${col.label}</span>
-                            <input type="date" style="margin-left: 8px;" onchange="applyFilter(${colIdx}, this.value)" value="${filterVal}">
+                            <div style="display: flex; gap: 4px; font-size: 12px;">
+                                <input type="date" placeholder="Start Date" style="width: 100px; padding: 2px; font-size: 11px;" 
+                                       onchange="applyDateRangeFilter(${colIdx}, this.value, 'start')" value="${startDateFilter}">
+                                <input type="date" placeholder="End Date" style="width: 100px; padding: 2px; font-size: 11px;" 
+                                       onchange="applyDateRangeFilter(${colIdx}, this.value, 'end')" value="${endDateFilter}">
+                            </div>
                         </div>
                     </th>`;
                 } else if (col.key === '⏰ Choose Task Start Time' || col.key === '⏰ Choose Task End Time' || col.key === 'Hours worked') {
@@ -249,6 +258,15 @@
             renderTable(allRows, filters);
         };
 
+        window.applyDateRangeFilter = function(colIdx, value, type) {
+            if (type === 'start') {
+                filters[colIdx + '_start'] = value;
+            } else if (type === 'end') {
+                filters[colIdx + '_end'] = value;
+            }
+            renderTable(allRows, filters);
+        };
+
         fetch(url)
             .then(response => response.json())
             .then(data => {
@@ -286,69 +304,7 @@
         });
     });
 
-    document.getElementById('showMonthlyBtn').addEventListener('click', function() {
-        // Get the selected date from the date filter
-        const dateFilter = document.querySelector('input[type="date"]');
-        const selectedDate = dateFilter ? dateFilter.value : '';
-        
-        if (!selectedDate) {
-            alert('Please select a date first to show monthly data');
-            return;
-        }
-        
-        // Calculate the first and last day of the selected month
-        const date = new Date(selectedDate);
-        const year = date.getFullYear();
-        const month = date.getMonth();
-        const firstDay = new Date(year, month, 1);
-        const lastDay = new Date(year, month + 1, 0);
-        
-        // Filter data for the entire month
-        const headerRow = allRows[0];
-        const dateColIdx = headerRow.indexOf('📆 Choose Date');
-        
-        const monthlyData = allRows.slice(1).filter(row => {
-            const rowDateStr = row[dateColIdx];
-            if (!rowDateStr) return false;
-            
-            // Try to parse the date string
-            let rowDate;
-            if (rowDateStr.includes('/')) {
-                // Handle MM/DD/YYYY or DD/MM/YYYY format
-                const parts = rowDateStr.split('/');
-                if (parts.length === 3) {
-                    const [m, d, y] = parts;
-                    rowDate = new Date(y, m - 1, d);
-                }
-            } else {
-                // Handle YYYY-MM-DD format
-                rowDate = new Date(rowDateStr);
-            }
-            
-            if (isNaN(rowDate.getTime())) return false;
-            
-            return rowDate >= firstDay && rowDate <= lastDay;
-        });
-        
-        if (monthlyData.length === 0) {
-            alert('No data found for the selected month. Please check the date format in your data.');
-            return;
-        }
-        
-        // Create a new array with header and monthly data
-        const monthlyRows = [headerRow, ...monthlyData];
-        
-        // Update the page title to show it's monthly data
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                           'July', 'August', 'September', 'October', 'November', 'December'];
-        const monthName = monthNames[month];
-        document.getElementById('sheetTitle').textContent = `Employee Timesheet - ${monthName} ${year} (${monthlyData.length} entries)`;
-        
-        // Render the monthly data in the table
-        renderTable(monthlyRows, {});
-        
-        // Remove the success message alert
-    });
+
     </script>
 </body>
 </html> 
