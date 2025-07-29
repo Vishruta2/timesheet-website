@@ -4,71 +4,63 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Timesheet Data</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #f2f2f2; font-size: 18px; }
-        .navbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 64px;
-            background: #090426;
-            box-shadow: 0 2px 8px rgba(66,133,244,0.08);
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            z-index: 20;
-        }
-        .navbar-logo {
-            height: 48px;
-            width: auto;
-            margin-right: 40px;
-        }
-        .container { width: 90%; margin: 40px auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 0 10px #ccc; margin-top: 90px; }
-        h2 { text-align: center; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; font-size: 18px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-        th { background: #4285f4; color: #fff; }
-        tr:nth-child(even) { background: #f9f9f9; }
-        #downloadPdfBtn {
-            position: absolute;
-            top: 16px !important;
-            right: 40px;
-            padding: 8px 20px;
-            font-size: 15px;
-            background: #4285f4;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            box-shadow: 0 2px 8px rgba(66,133,244,0.10);
-            cursor: pointer;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-            transition: background 0.3s, transform 0.2s;
-            z-index: 30;
-        }
-    </style>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="navbar">
         <img src="logo.png" alt="Logo" class="navbar-logo">
-    </div>
-    <div class="container">
-        <h2 id="sheetTitle">Employee Timesheet</h2>
-        <button id="downloadPdfBtn"
-            style="
-                margin-bottom: 20px;
-                position: static;
-                display: block;
-                float: right;
-                top: auto;
-                right: auto;
-            "
-            onmouseover="this.style.background='#3367d6'; this.style.transform='scale(1.05)';"
-            onmouseout="this.style.background='#4285f4'; this.style.transform='scale(1)';"
-        >
+        <button id="downloadPdfBtn" class="menu-btn download-btn">
             ⬇️ Download
         </button>
+    </div>
+    <div class="container">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+            <button id="homeBtn" class="home-btn">
+                🏠 Home
+            </button>
+            <h2 id="sheetTitle" style="margin: 0;">Employee Timesheet</h2>
+            <div style="width: 100px;"></div>
+        </div>
+        
+        <!-- Filter Controls -->
+        <div class="filter-container">
+            <div class="filter-controls">
+                <!-- Name Filter -->
+                <div class="filter-group">
+                    <label class="filter-label">Name:</label>
+                    <select id="nameFilter" class="filter-select" onchange="applyNameFilter()" aria-label="Filter by employee name">
+                        <option value="">All Names</option>
+                    </select>
+                </div>
+                
+                <!-- From Date Filter -->
+                <div class="filter-group">
+                    <label class="filter-label">From Date:</label>
+                    <input type="date" id="fromDateFilter" class="filter-select" onchange="applyFromDateFilter()" aria-label="Filter from date">
+                </div>
+                
+                <!-- To Date Filter -->
+                <div class="filter-group">
+                    <label class="filter-label">To Date:</label>
+                    <input type="date" id="toDateFilter" class="filter-select" onchange="applyToDateFilter()" aria-label="Filter to date">
+                </div>
+            </div>
+            
+            <!-- Dropdown Menu -->
+            <div class="dropdown-menu">
+                <button id="menuToggleBtn" class="menu-toggle-btn">
+                    📋 Reports Menu ▼
+                </button>
+                <div id="menuDropdown" class="menu-dropdown">
+                    <button id="projectSummaryBtn" class="menu-item-btn">
+                        📋 Project Summary
+                    </button>
+                    <button id="simpleViewBtn" class="menu-item-btn">
+                        📊 Consolidate Report
+                    </button>
+                </div>
+            </div>
+        </div>
 
         <div id="tableContainer">Loading timesheet...</div>
     </div>
@@ -99,16 +91,34 @@
 
         let allRows = [];
         let filters = {};
+        let globalFilters = {
+            name: '',
+            fromDate: '',
+            toDate: ''
+        };
 
-        // Helper to normalize date to YYYY-MM-DD
+        // Helper to normalize date to YYYY-MM-DD (for filtering)
         function normalizeDate(str) {
             if (!str) return '';
             const parts = str.split('/');
             if (parts.length === 3) {
-                let [m, d, y] = parts;
+                let [m, d, y] = parts; // Excel format is MM/DD/YYYY
                 if (y.length === 4) {
-                    if (Number(m) > 12) [d, m] = [m, d];
                     return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+                }
+            }
+            return str;
+        }
+
+        // Helper to format date for display as DD-MM-YYYY
+        function formatDateForDisplay(str) {
+            if (!str) return '';
+            const parts = str.split('/');
+            if (parts.length === 3) {
+                let [m, d, y] = parts; // Excel format is MM/DD/YYYY
+                if (y.length === 4) {
+                    // Convert MM/DD/YYYY to DD-MM-YYYY for display
+                    return `${d.padStart(2, '0')}-${m.padStart(2, '0')}-${y}`;
                 }
             }
             return str;
@@ -125,8 +135,42 @@
             const colIndices = COLUMN_CONFIG.filter(col => col.key !== 'Serial' && col.show)
                 .map(col => headerRow.indexOf(col.key));
 
-            // Apply filters (skip Serial column)
-            let filteredRows = rows.slice(1).filter((row, rowIdx) =>
+            // Apply global filters first
+            let filteredRows = rows.slice(1).filter((row, rowIdx) => {
+                // Apply name filter
+                if (globalFilters.name && row[headerRow.indexOf('👤 Choose Your Name ')] !== globalFilters.name) {
+                    return false;
+                }
+                
+                // Apply from date filter
+                if (globalFilters.fromDate) {
+                    const dateStr = row[headerRow.indexOf('📆 Choose Date')];
+                    if (dateStr) {
+                        const normalizedDate = normalizeDate(dateStr);
+                        if (normalizedDate < globalFilters.fromDate) {
+                            return false;
+                        }
+                    }
+                }
+                
+                // Apply to date filter
+                if (globalFilters.toDate) {
+                    const dateStr = row[headerRow.indexOf('📆 Choose Date')];
+                    if (dateStr) {
+                        const normalizedDate = normalizeDate(dateStr);
+                        if (normalizedDate > globalFilters.toDate) {
+                            return false;
+                        }
+                    }
+                }
+                
+
+                
+                return true;
+            });
+            
+            // Apply column-specific filters
+            filteredRows = filteredRows.filter((row, rowIdx) =>
                 colIndices.every((colIdx, i) => {
                     const filterVal = filters[colIdx];
                     const startDateFilter = filters[colIdx + '_start'];
@@ -175,29 +219,18 @@
                                 <span></span>
                              </div></th>`;
                 } else if (col.key === '📆 Choose Date') {
-                    const colIdx = headerRow.indexOf(col.key);
-                    const startDateFilter = filters[colIdx + '_start'] || '';
-                    const endDateFilter = filters[colIdx + '_end'] || '';
-                    html += `<th>
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            <span>${col.label}</span>
-                            <div style="display: flex; gap: 4px; font-size: 12px;">
-                                <input type="date" placeholder="Start Date" style="width: 100px; padding: 2px; font-size: 11px;" 
-                                       onchange="applyDateRangeFilter(${colIdx}, this.value, 'start')" value="${startDateFilter}">
-                                <input type="date" placeholder="End Date" style="width: 100px; padding: 2px; font-size: 11px;" 
-                                       onchange="applyDateRangeFilter(${colIdx}, this.value, 'end')" value="${endDateFilter}">
-                            </div>
-                        </div>
-                    </th>`;
+                    html += `<th><div class="filter-header"><span>${col.label}</span></div></th>`;
                 } else if (col.key === '⏰ Choose Task Start Time' || col.key === '⏰ Choose Task End Time' || col.key === 'Hours worked') {
-                    html += `<th><div style=\"display: flex; justify-content: space-between; align-items: center;\"><span>${col.label}</span></div></th>`;
+                    html += `<th><div class="filter-header"><span>${col.label}</span></div></th>`;
+                } else if (col.key === '👤 Choose Your Name ') {
+                    html += `<th><div class="filter-header"><span>${col.label}</span></div></th>`;
                 } else {
                     const colIdx = headerRow.indexOf(col.key);
                     const uniqueVals = [...new Set(rows.slice(1).map(row => row[colIdx] || ''))];
                     html += `<th>
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div class="filter-header">
                             <span>${col.label}</span>
-                            <select style="margin-left: 8px;" onchange="applyFilter(${colIdx}, this.value)">
+                            <select class="filter-dropdown" onchange="applyFilter(${colIdx}, this.value)">
                                 <option value=""${!filters[colIdx] ? ' selected' : ''}>All</option>
                                 ${uniqueVals.map(val =>
                                     `<option value="${val}"${filters[colIdx] === val ? ' selected' : ''}>${val}</option>`
@@ -209,6 +242,10 @@
             });
             html += '</tr></thead><tbody>';
 
+            // Calculate total hours worked
+            let totalHours = 0;
+            let totalMinutes = 0;
+            
             // Render filtered rows
             filteredRows.forEach((row, i) => {
                 html += '<tr>';
@@ -240,8 +277,21 @@
                             const hours = Math.floor(diffMins / 60);
                             const mins = Math.round(diffMins % 60);
                             total = hours + (mins > 0 ? (':' + mins.toString().padStart(2, '0')) : '');
+                            
+                            // Add to total calculation
+                            totalHours += hours;
+                            totalMinutes += mins;
                         }
                         html += `<td>${total}</td>`;
+                    } else if (col.key === '📆 Choose Date') {
+                        const colIdx = headerRow.indexOf(col.key);
+                        html += `<td>${formatDateForDisplay(row[colIdx])}</td>`;
+                    } else if (col.key === '⏰ Choose Task Start Time' || col.key === '⏰ Choose Task End Time') {
+                        const colIdx = headerRow.indexOf(col.key);
+                        const timeValue = row[colIdx] || '';
+                        // Add leading zero only to single-digit hours (1-9)
+                        const formattedTime = timeValue.replace(/^(\d):/g, '0$1:');
+                        html += `<td>${formattedTime}</td>`;
                     } else {
                         const colIdx = headerRow.indexOf(col.key);
                         html += `<td>${row[colIdx]}</td>`;
@@ -249,6 +299,28 @@
                 });
                 html += '</tr>';
             });
+            
+            // Add total row
+            if (filteredRows.length > 0) {
+                // Convert excess minutes to hours
+                totalHours += Math.floor(totalMinutes / 60);
+                totalMinutes = totalMinutes % 60;
+                
+                html += '<tr style="background-color: #e8f4fd; font-weight: bold;">';
+                COLUMN_CONFIG.forEach(col => {
+                    if (!col.show) return;
+                    if (col.key === 'Serial') {
+                        html += `<td>Total</td>`;
+                    } else if (col.key === 'Hours worked') {
+                        const totalDisplay = totalHours + (totalMinutes > 0 ? (':' + totalMinutes.toString().padStart(2, '0')) : '');
+                        html += `<td>${totalDisplay}</td>`;
+                    } else {
+                        html += `<td></td>`;
+                    }
+                });
+                html += '</tr>';
+            }
+            
             html += '</tbody></table>';
             document.getElementById('tableContainer').innerHTML = html;
         }
@@ -267,42 +339,416 @@
             renderTable(allRows, filters);
         };
 
+        // Global filter functions
+        window.applyNameFilter = function() {
+            globalFilters.name = document.getElementById('nameFilter').value;
+            renderTable(allRows, filters);
+        };
+
+        window.applyFromDateFilter = function() {
+            globalFilters.fromDate = document.getElementById('fromDateFilter').value;
+            renderTable(allRows, filters);
+        };
+
+        window.applyToDateFilter = function() {
+            globalFilters.toDate = document.getElementById('toDateFilter').value;
+            renderTable(allRows, filters);
+        };
+
+        // Function to show simple view (serial, name, date, hours worked)
+        function showSimpleView() {
+            if (!allRows || allRows.length < 2) return;
+            
+            const headerRow = allRows[0];
+            const nameColIdx = headerRow.indexOf('👤 Choose Your Name ');
+            const dateColIdx = headerRow.indexOf('📆 Choose Date');
+            const startTimeColIdx = headerRow.indexOf('⏰ Choose Task Start Time');
+            const endTimeColIdx = headerRow.indexOf('⏰ Choose Task End Time');
+            
+            // Apply the same filters as the main table
+            let filteredRows = allRows.slice(1).filter((row, rowIdx) => {
+                // Apply name filter
+                if (globalFilters.name && row[nameColIdx] !== globalFilters.name) {
+                    return false;
+                }
+                
+                // Apply from date filter
+                if (globalFilters.fromDate) {
+                    const dateStr = row[dateColIdx];
+                    if (dateStr) {
+                        const normalizedDate = normalizeDate(dateStr);
+                        if (normalizedDate < globalFilters.fromDate) {
+                            return false;
+                        }
+                    }
+                }
+                
+                // Apply to date filter
+                if (globalFilters.toDate) {
+                    const dateStr = row[dateColIdx];
+                    if (dateStr) {
+                        const normalizedDate = normalizeDate(dateStr);
+                        if (normalizedDate > globalFilters.toDate) {
+                            return false;
+                        }
+                    }
+                }
+                
+                return true;
+            });
+            
+            // Group by date and collect all projects with their hours for each date
+            const dateSummary = {};
+            
+            filteredRows.forEach(row => {
+                const name = row[nameColIdx] || '';
+                const originalDate = row[dateColIdx] || '';
+                const normalizedDate = normalizeDate(originalDate); // Use normalized date for grouping
+                const displayDate = formatDateForDisplay(originalDate); // Use display format for showing
+                const projectCode = row[headerRow.indexOf('📁 Choose Project Code')] || 'Unknown Project';
+                const start = row[startTimeColIdx] || '';
+                const end = row[endTimeColIdx] || '';
+                
+                function parseTime12h(t) {
+                    const [time, modifier] = t.split(' ');
+                    let [hours, minutes, seconds] = time.split(':').map(Number);
+                    if (modifier === 'PM' && hours !== 12) hours += 12;
+                    if (modifier === 'AM' && hours === 12) hours = 0;
+                    return hours * 60 + minutes + (seconds ? seconds / 60 : 0);
+                }
+                
+                if (start && end && normalizedDate) {
+                    const startMins = parseTime12h(start);
+                    const endMins = parseTime12h(end);
+                    let diffMins = endMins - startMins;
+                    if (diffMins < 0) diffMins += 24 * 60;
+                    
+                    // When "All Names" is selected, group by date + name to show individual employee hours
+                    const groupKey = !globalFilters.name || globalFilters.name === '' ? `${normalizedDate}_${name}` : normalizedDate;
+                    
+                    if (!dateSummary[groupKey]) {
+                        dateSummary[groupKey] = {
+                            name: name,
+                            displayDate: displayDate,
+                            projects: {},
+                            totalMinutes: 0
+                        };
+                    }
+                    
+                    // Add project hours
+                    if (!dateSummary[groupKey].projects[projectCode]) {
+                        dateSummary[groupKey].projects[projectCode] = 0;
+                    }
+                    dateSummary[groupKey].projects[projectCode] += diffMins;
+                    dateSummary[groupKey].totalMinutes += diffMins;
+                }
+            });
+            
+            // Create consolidated report table
+            let simpleHtml = '<div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">';
+            simpleHtml += '<h3 style="margin-top: 0; color: #333;">Consolidate Report</h3>';
+            
+            if (Object.keys(dateSummary).length === 0) {
+                simpleHtml += '<p>No data found for the selected filters.</p>';
+            } else {
+                // Check if "All Names" is selected (empty value means all names)
+                const showNameColumn = !globalFilters.name || globalFilters.name === '';
+                
+                // Only show employee name above table if a specific name is selected
+                if (!showNameColumn) {
+                    const employeeName = Object.values(dateSummary)[0]?.name || 'Unknown';
+                    simpleHtml += `<h4 style="margin: 15px 0 10px 0; color: #4285f4; font-size: 18px;">Employee: ${employeeName}</h4>`;
+                }
+                
+                            simpleHtml += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+            simpleHtml += '<thead><tr style="background: #4285f4; color: white;">';
+            simpleHtml += '<th style="padding: 10px; border: 1px solid #ccc; text-align: center;">Serial</th>';
+            if (showNameColumn) {
+                simpleHtml += '<th style="padding: 10px; border: 1px solid #ccc; text-align: center;">Name</th>';
+            }
+            simpleHtml += '<th style="padding: 10px; border: 1px solid #ccc; text-align: center;">Date</th>';
+            simpleHtml += '<th style="padding: 10px; border: 1px solid #ccc; text-align: center;">Projects & Hours</th>';
+                simpleHtml += '</tr></thead><tbody>';
+                
+                let grandTotal = 0;
+                const sortedDates = Object.keys(dateSummary).sort();
+                
+                sortedDates.forEach((date, i) => {
+                    const summary = dateSummary[date];
+                    grandTotal += summary.totalMinutes;
+                    
+                    // Create project details HTML with table structure for alignment
+                    let projectsHtml = '<table style="width: 50%; border-collapse: collapse; margin: 0 auto;">';
+                    Object.entries(summary.projects).forEach(([projectCode, minutes]) => {
+                        const hours = Math.floor(minutes / 60);
+                        const mins = Math.round(minutes % 60);
+                        const timeDisplay = hours + (mins > 0 ? (':' + mins.toString().padStart(2, '0')) : '');
+                        projectsHtml += `<tr>
+                            <td style="padding: 2px 4px 2px 0; text-align: left; font-weight: bold; color: #4285f4; border: none;">${projectCode} -</td>
+                            <td style="padding: 2px 0; text-align: right; font-size: 16px; font-weight: 500; border: none;">${timeDisplay}</td>
+                        </tr>`;
+                    });
+                    
+                    // Add total for this date
+                    const dateHours = Math.floor(summary.totalMinutes / 60);
+                    const dateMinutes = Math.round(summary.totalMinutes % 60);
+                    const dateTotal = dateHours + (dateMinutes > 0 ? (':' + dateMinutes.toString().padStart(2, '0')) : '');
+                    projectsHtml += `<tr style="border-top: 1px solid #ddd;">
+                        <td style="padding: 4px 4px 2px 0; text-align: left; font-weight: bold; color: #333; border: none;">Total:</td>
+                        <td style="padding: 4px 0 2px 0; text-align: right; font-weight: bold; color: #333; border: none;">${dateTotal}</td>
+                    </tr>`;
+                    projectsHtml += '</table>';
+                    
+                    simpleHtml += '<tr style="background: #fff;">';
+                    simpleHtml += `<td style="padding: 10px; border: 1px solid #ccc;">${i + 1}</td>`;
+                    if (showNameColumn) {
+                        simpleHtml += `<td style="padding: 10px; border: 1px solid #ccc;">${summary.name}</td>`;
+                    }
+                    simpleHtml += `<td style="padding: 10px; border: 1px solid #ccc;">${summary.displayDate}</td>`;
+                    simpleHtml += `<td style="padding: 10px; border: 1px solid #ccc;">${projectsHtml}</td>`;
+                    simpleHtml += '</tr>';
+                });
+                
+                // Add grand total row
+                if (sortedDates.length > 0) {
+                    const grandTotalHours = Math.floor(grandTotal / 60);
+                    const grandTotalMinutes = Math.round(grandTotal % 60);
+                    const grandTotalDisplay = grandTotalHours + (grandTotalMinutes > 0 ? (':' + grandTotalMinutes.toString().padStart(2, '0')) : '');
+                    
+                    simpleHtml += '<tr style="background: #e8f4fd; font-weight: bold;">';
+                    simpleHtml += '<td style="padding: 10px; border: 1px solid #ccc;">Total</td>';
+                    if (showNameColumn) {
+                        simpleHtml += '<td style="padding: 10px; border: 1px solid #ccc;"></td>';
+                    }
+                    simpleHtml += '<td style="padding: 10px; border: 1px solid #ccc;"></td>';
+                    simpleHtml += `<td style="padding: 10px; border: 1px solid #ccc;">${grandTotalDisplay}</td>`;
+                    simpleHtml += '</tr>';
+                }
+                
+                simpleHtml += '</tbody></table>';
+            }
+            
+            simpleHtml += '</div>';
+            
+            document.getElementById('tableContainer').innerHTML = simpleHtml;
+        }
+
+        // Function to show project summary
+        function showProjectSummary() {
+            if (!allRows || allRows.length < 2) return;
+            
+            const headerRow = allRows[0];
+            const nameColIdx = headerRow.indexOf('👤 Choose Your Name ');
+            const dateColIdx = headerRow.indexOf('📆 Choose Date');
+            const projectColIdx = headerRow.indexOf('📁 Choose Project Code');
+            const startTimeColIdx = headerRow.indexOf('⏰ Choose Task Start Time');
+            const endTimeColIdx = headerRow.indexOf('⏰ Choose Task End Time');
+            
+            // Apply the same filters as the main table
+            let filteredRows = allRows.slice(1).filter((row, rowIdx) => {
+                // Apply name filter
+                if (globalFilters.name && row[nameColIdx] !== globalFilters.name) {
+                    return false;
+                }
+                
+                // Apply from date filter
+                if (globalFilters.fromDate) {
+                    const dateStr = row[dateColIdx];
+                    if (dateStr) {
+                        const normalizedDate = normalizeDate(dateStr);
+                        if (normalizedDate < globalFilters.fromDate) {
+                            return false;
+                        }
+                    }
+                }
+                
+                // Apply to date filter
+                if (globalFilters.toDate) {
+                    const dateStr = row[dateColIdx];
+                    if (dateStr) {
+                        const normalizedDate = normalizeDate(dateStr);
+                        if (normalizedDate > globalFilters.toDate) {
+                            return false;
+                        }
+                    }
+                }
+                
+                return true;
+            });
+            
+            // Group by project code and calculate total hours
+            const projectSummary = {};
+            
+            filteredRows.forEach(row => {
+                const projectCode = row[projectColIdx] || 'Unknown Project';
+                const start = row[startTimeColIdx] || '';
+                const end = row[endTimeColIdx] || '';
+                
+                function parseTime12h(t) {
+                    const [time, modifier] = t.split(' ');
+                    let [hours, minutes, seconds] = time.split(':').map(Number);
+                    if (modifier === 'PM' && hours !== 12) hours += 12;
+                    if (modifier === 'AM' && hours === 12) hours = 0;
+                    return hours * 60 + minutes + (seconds ? seconds / 60 : 0);
+                }
+                
+                if (start && end) {
+                    const startMins = parseTime12h(start);
+                    const endMins = parseTime12h(end);
+                    let diffMins = endMins - startMins;
+                    if (diffMins < 0) diffMins += 24 * 60;
+                    
+                    if (!projectSummary[projectCode]) {
+                        projectSummary[projectCode] = 0;
+                    }
+                    projectSummary[projectCode] += diffMins;
+                }
+            });
+            
+            // Create summary table
+            let summaryHtml = '<div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">';
+            summaryHtml += '<h3 style="margin-top: 0; color: #333;">Project Summary</h3>';
+            
+            if (Object.keys(projectSummary).length === 0) {
+                summaryHtml += '<p>No data found for the selected filters.</p>';
+            } else {
+                            summaryHtml += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+            summaryHtml += '<thead><tr style="background: #4285f4; color: white;">';
+            summaryHtml += '<th style="padding: 10px; border: 1px solid #ccc; text-align: center;">Project Code</th>';
+            summaryHtml += '<th style="padding: 10px; border: 1px solid #ccc; text-align: center;">Total Hours</th>';
+                summaryHtml += '</tr></thead><tbody>';
+                
+                let grandTotal = 0;
+                Object.entries(projectSummary).forEach(([project, totalMinutes]) => {
+                    const hours = Math.floor(totalMinutes / 60);
+                    const minutes = Math.round(totalMinutes % 60);
+                    const timeDisplay = hours + (minutes > 0 ? (':' + minutes.toString().padStart(2, '0')) : '');
+                    grandTotal += totalMinutes;
+                    
+                    summaryHtml += '<tr style="background: #fff;">';
+                    summaryHtml += `<td style="padding: 10px; border: 1px solid #ccc;">${project}</td>`;
+                    summaryHtml += `<td style="padding: 10px; border: 1px solid #ccc;">${timeDisplay}</td>`;
+                    summaryHtml += '</tr>';
+                });
+                
+                // Add grand total row
+                const grandTotalHours = Math.floor(grandTotal / 60);
+                const grandTotalMinutes = Math.round(grandTotal % 60);
+                const grandTotalDisplay = grandTotalHours + (grandTotalMinutes > 0 ? (':' + grandTotalMinutes.toString().padStart(2, '0')) : '');
+                
+                summaryHtml += '<tr style="background: #e8f4fd; font-weight: bold;">';
+                summaryHtml += '<td style="padding: 10px; border: 1px solid #ccc;">Total</td>';
+                summaryHtml += `<td style="padding: 10px; border: 1px solid #ccc;">${grandTotalDisplay}</td>`;
+                summaryHtml += '</tr>';
+                
+                summaryHtml += '</tbody></table>';
+            }
+            
+            summaryHtml += '</div>';
+            
+            // Show the summary in a modal or replace the table
+            document.getElementById('tableContainer').innerHTML = summaryHtml;
+        }
+
+        // Function to populate filter dropdowns
+        function populateFilterDropdowns() {
+            if (!allRows || allRows.length < 2) return;
+            
+            const headerRow = allRows[0];
+            const nameColIdx = headerRow.indexOf('👤 Choose Your Name ');
+            
+            // Populate name filter
+            const nameFilter = document.getElementById('nameFilter');
+            const uniqueNames = [...new Set(allRows.slice(1).map(row => row[nameColIdx] || '').filter(name => name))];
+            uniqueNames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                nameFilter.appendChild(option);
+            });
+        }
+
         fetch(url)
             .then(response => response.json())
             .then(data => {
                 allRows = data.values;
                 filters = {}; // Reset filters
+                globalFilters = { name: '', fromDate: '', toDate: '' }; // Reset global filters
                 renderTable(allRows, filters);
+                populateFilterDropdowns();
             })
             .catch(err => {
                 document.getElementById('tableContainer').innerHTML = 'Error loading timesheet: ' + err.message;
             });
 
-    document.getElementById('downloadPdfBtn').addEventListener('click', function() {
-        // Capture the entire page including navbar and logo
-        html2canvas(document.body, {
-            allowTaint: true,
-            useCORS: true,
-            scale: 2,
-            backgroundColor: '#f2f2f2'
-        }).then(canvas => {
-            const imgData = canvas.toDataURL('image/jpeg', 0.7);
-            const pdf = new window.jspdf.jsPDF({
-                orientation: 'landscape',
-                unit: 'pt',
-                format: 'a4'
-            });
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            const imgWidth = pageWidth - 40;
-            const imgHeight = canvas.height * imgWidth / canvas.width;
-            
-            // Add the captured image starting below the title
-            pdf.addImage(imgData, 'PNG', 20, 50, imgWidth, imgHeight);
-            
-            pdf.save('vishruta-timesheet.pdf');
-        });
+    // Menu toggle functionality
+    document.getElementById('menuToggleBtn').addEventListener('click', function() {
+        const dropdown = document.getElementById('menuDropdown');
+        dropdown.classList.toggle('show');
+        
+        // Change arrow direction
+        const arrow = this.textContent.includes('▼') ? '▲' : '▼';
+        this.textContent = this.textContent.replace(/[▼▲]/, arrow);
     });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('menuDropdown');
+        const toggleBtn = document.getElementById('menuToggleBtn');
+        
+        if (!dropdown.contains(event.target) && !toggleBtn.contains(event.target)) {
+            dropdown.classList.remove('show');
+            // Reset arrow
+            toggleBtn.textContent = toggleBtn.textContent.replace(/[▼▲]/, '▼');
+        }
+    });
+
+    // Project summary button functionality
+    document.getElementById('projectSummaryBtn').addEventListener('click', function() {
+        showProjectSummary();
+        // Close dropdown after selection
+        document.getElementById('menuDropdown').classList.remove('show');
+        document.getElementById('menuToggleBtn').textContent = document.getElementById('menuToggleBtn').textContent.replace(/[▼▲]/, '▼');
+    });
+
+    // Simple view button functionality
+    document.getElementById('simpleViewBtn').addEventListener('click', function() {
+        showSimpleView();
+        // Close dropdown after selection
+        document.getElementById('menuDropdown').classList.remove('show');
+        document.getElementById('menuToggleBtn').textContent = document.getElementById('menuToggleBtn').textContent.replace(/[▼▲]/, '▼');
+    });
+
+            // Home button functionality
+        document.getElementById('homeBtn').addEventListener('click', function() {
+            location.reload();
+        });
+
+        document.getElementById('downloadPdfBtn').addEventListener('click', function() {
+            // Capture the entire page including navbar and logo
+            html2canvas(document.body, {
+                allowTaint: true,
+                useCORS: true,
+                scale: 2,
+                backgroundColor: '#f2f2f2'
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/jpeg', 0.7);
+                const pdf = new window.jspdf.jsPDF({
+                    orientation: 'landscape',
+                    unit: 'pt',
+                    format: 'a4'
+                });
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const imgWidth = pageWidth - 40;
+                const imgHeight = canvas.height * imgWidth / canvas.width;
+                
+                // Add the captured image starting below the title
+                pdf.addImage(imgData, 'PNG', 20, 50, imgWidth, imgHeight);
+                
+                pdf.save('vishruta-timesheet.pdf');
+            });
+        });
 
 
     </script>
