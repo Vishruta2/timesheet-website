@@ -8,7 +8,160 @@
 <meta content="Vishruta Timesheet Management System" name="description"/>
 <title>Timesheet Data</title>
 <link href="styles.css" rel="stylesheet"/>
-</head>
+<style>
+/* ===== Print-friendly PDF (text, not screenshot) ===== */
+@media print {
+  /* Hide controls and nav chrome */
+  .header, .sidebar, .menu, .filters, .buttons, .actions,
+  #menuToggleBtn, #downloadPdfBtn, #exportCsvBtn, #uploadBtn,
+  #sheetConfigBtn, #projectSummaryBtn, #simpleViewBtn, #detailedViewBtn {
+    display: none !important;
+  }
+  #homeBtn,
+  .home-btn {
+    display: none !important;
+  }
+  #sheetTitle {
+    text-align: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+  /* Expand content to full width */
+  body, html {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .container, .content, .table-container, .report-container {
+    width: 100% !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Preserve colors in Chrome */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Avoid truncating table headers/rows across pages */
+  table { page-break-inside: auto; }
+  tr    { page-break-inside: avoid; page-break-after: auto; }
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+
+  /* Optional: force page breaks where needed */
+  .page-break { break-after: page; page-break-after: always; }
+}
+
+
+/* ===== Enhanced print to avoid right-side clipping and ensure full tables ===== */
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@media print {
+  /* Hide interactive chrome */
+  .navbar, .menu, .menu-dropdown, .filter-container, .filter-controls, 
+  #menuToggleBtn, #downloadPdfBtn, #exportCsvBtn, #uploadBtn,
+  #sheetConfigBtn, #projectSummaryBtn, #simpleViewBtn, #detailedViewBtn {
+    display: none !important;
+  }
+
+  html, body {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* Use full-page width for content */
+  .container, .content, .table-container, #tableContainer, .report-container {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
+  }
+
+  /* Ensure tables never overflow and are fully enclosed */
+  #tableContainer table, .table-container table, .report-container table, table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+    border-collapse: collapse !important;
+  }
+  #tableContainer th, #tableContainer td,
+  .table-container th, .table-container td,
+  .report-container th, .report-container td,
+  th, td {
+    border: 1px solid #ccc !important;
+    padding: 6px !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+    overflow-wrap: anywhere !important;
+    vertical-align: top !important;
+  }
+
+  /* Keep header and footer repeating across pages */
+  thead { display: table-header-group !important; }
+  tfoot { display: table-footer-group !important; }
+
+  /* Avoid breaking a row across pages */
+  tr { page-break-inside: avoid !important; }
+  table { page-break-inside: auto !important; }
+
+  /* Images scale to fit */
+  img, canvas {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Neutralize potentially problematic positioning on print */
+  .fixed, .sticky {
+    position: static !important;
+  }
+}
+
+
+/* ===== Print logo + smaller fonts ===== */
+@media print {
+  /* Show print-only header with logo */
+  .print-header { 
+    display: flex !important; 
+    align-items: center !important; 
+    gap: 8mm !important; 
+    margin: 0 0 8mm 0 !important;
+  }
+  .print-header img { 
+    height: 36px !important; 
+    width: auto !important; 
+  }
+
+  /* Keep original navbar hidden to avoid duplicating controls */
+  .navbar { display: none !important; }
+
+  /* Smaller, readable font sizes for print */
+  html, body { font-size: 14px !important; }
+  h1 { font-size: 22px !important; }
+  h2 { font-size: 18px !important; }
+  h3 { font-size: 16px !important; }
+  h4 { font-size: 14px !important; }
+  th, td { font-size: 12px !important; padding: 5px !important; }
+
+  /* Slightly tighter spacing for compact PDFs */
+  .container { padding: 0 !important; }
+  .report-container, .table-container { margin: 0 !important; }
+}
+/* Hide the print header on screen */
+@media screen {
+  .print-header { display: none; }
+}
+</style></head>
 <body>
 <div class="navbar">
 <img alt="Logo" class="navbar-logo" src="logo.png"/>
@@ -16,7 +169,7 @@
             ⬇️ Download
         </button>
 </div>
-<div class="container">
+<div class="container"><div class="print-header"><img src="logo.png"/></div>
 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
 <button class="home-btn" id="homeBtn">
                 🏠 Home
@@ -39,7 +192,6 @@
 <label class="filter-label">From Date:</label>
 <input aria-label="Filter from date" class="filter-select" id="fromDateFilter" max="" onchange="applyFromDateFilter()" type="date"/>
 </div>
-
 <!-- To Date Filter -->
 <div class="filter-group">
 <label class="filter-label">To Date:</label>
@@ -555,7 +707,7 @@
                     `;
                 }
             })();
-       simpleHtml += '<h3 style="margin: 15px 0 10px 0; color: #333;">Consolidate Report</h3>';
+            simpleHtml += '<h3 style="margin-top: 15px; margin-bottom: 10px; color: #333;">Consolidate Report</h3>';
             
             if (Object.keys(dateSummary).length === 0) {
                 simpleHtml += '<p>No data found for the selected filters.</p>';
@@ -964,14 +1116,7 @@
 
         document.getElementById('downloadPdfBtn').addEventListener('click', function() {
             // Capture the entire page including navbar and logo
-            html2canvas(document.body, {
-                allowTaint: true,
-                useCORS: true,
-                scale: 2,
-                backgroundColor: '#f2f2f2'
-            }).then(canvas => {
-                const imgData = canvas.toDataURL('image/jpeg', 0.7);
-                const pdf = new window.jspdf.jsPDF({
+            const pdf = new window.jspdf.jsPDF({
                     orientation: 'landscape',
                     unit: 'pt',
                     format: 'a4'
@@ -986,9 +1131,13 @@
                 
                 pdf.save('vishruta-timesheet.pdf');
             });
-        });
+        
 
 
-    </script>
+    
+document.getElementById('downloadPdfBtn')?.addEventListener('click', function() {
+  window.print();
+});
+</script>
 </body>
 </html> 
