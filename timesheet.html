@@ -1,81 +1,81 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="description" content="Vishruta Timesheet Management System">
-    <title>Timesheet Data</title>
-    <link rel="stylesheet" href="styles.css">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="IE=edge" http-equiv="X-UA-Compatible"/>
+<meta content="Vishruta Timesheet Management System" name="description"/>
+<title>Timesheet Data</title>
+<link href="styles.css" rel="stylesheet"/>
 </head>
 <body>
-    <div class="navbar">
-        <img src="logo.png" alt="Logo" class="navbar-logo">
-        <button id="downloadPdfBtn" class="menu-btn download-btn">
+<div class="navbar">
+<img alt="Logo" class="navbar-logo" src="logo.png"/>
+<button class="menu-btn download-btn" id="downloadPdfBtn">
             ⬇️ Download
         </button>
-    </div>
-    <div class="container">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
-            <button id="homeBtn" class="home-btn">
+</div>
+<div class="container">
+<div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;">
+<button class="home-btn" id="homeBtn">
                 🏠 Home
             </button>
-            <h2 id="sheetTitle" style="margin: 0;">Employee Timesheet</h2>
-            <div style="width: 100px;"></div>
-        </div>
-        
-        <!-- Filter Controls -->
-        <div class="filter-container">
-            <div class="filter-controls">
-                <!-- Name Filter -->
-                <div class="filter-group">
-                    <label class="filter-label">Name:</label>
-                    <select id="nameFilter" class="filter-select" onchange="applyNameFilter()" aria-label="Filter by employee name">
-                        <option value="">All</option>
-                    </select>
-                </div>
-                
-                <!-- From Date Filter -->
-                <div class="filter-group">
-                    <label class="filter-label">From Date:</label>
-                    <input type="date" id="fromDateFilter" class="filter-select" onchange="applyFromDateFilter()" aria-label="Filter from date" max="">
-                </div>
-                
-                <!-- To Date Filter -->
-                <div class="filter-group">
-                    <label class="filter-label">To Date:</label>
-                    <input type="date" id="toDateFilter" class="filter-select" onchange="applyToDateFilter()" aria-label="Filter to date" max="">
-                </div>
-            </div>
-            
-            <!-- Dropdown Menu -->
-            <div class="dropdown-menu">
-                <button id="menuToggleBtn" class="menu-toggle-btn">
+<h2 id="sheetTitle" style="margin: 0;">Employee Timesheet</h2>
+<div style="width: 100px;"></div>
+</div>
+<!-- Filter Controls -->
+<div class="filter-container">
+<div class="filter-controls">
+<!-- Name Filter -->
+<div class="filter-group">
+<label class="filter-label">Name:</label>
+<select aria-label="Filter by employee name" class="filter-select" id="nameFilter" onchange="applyNameFilter()">
+<option value="">All</option>
+</select>
+</div>
+<!-- From Date Filter -->
+<div class="filter-group">
+<label class="filter-label">From Date:</label>
+<input aria-label="Filter from date" class="filter-select" id="fromDateFilter" max="" onchange="applyFromDateFilter()" type="date"/>
+</div>
+
+<!-- To Date Filter -->
+<div class="filter-group">
+<label class="filter-label">To Date:</label>
+<input aria-label="Filter to date" class="filter-select" id="toDateFilter" max="" onchange="applyToDateFilter()" type="date"/>
+</div><div class="filter-group">
+<label class="filter-label">Month:</label>
+<input aria-label="Filter by month" class="filter-select" id="monthFilter" type="month"/>
+</div>
+</div>
+<!-- Dropdown Menu -->
+<div class="dropdown-menu">
+<button class="menu-toggle-btn" id="menuToggleBtn">
                     📋 Reports ▼
                 </button>
-                <div id="menuDropdown" class="menu-dropdown">
-                    <button id="projectSummaryBtn" class="menu-item-btn">
+<div class="menu-dropdown" id="menuDropdown">
+<button class="menu-item-btn" id="projectSummaryBtn">
                         📋 Project Wise
                     </button>
-                    <button id="simpleViewBtn" class="menu-item-btn">
+<button class="menu-item-btn" id="simpleViewBtn">
                         📊 Date Wise
                     </button>
-                </div>
-            </div>
-        </div>
-
-        <div id="tableContainer">
-            <div style="text-align: center; padding: 40px; color: #666;">
-                <div style="font-size: 24px; margin-bottom: 10px;">📊</div>
-                <div>Loading timesheet data...</div>
-                <div style="font-size: 12px; margin-top: 10px; color: #999;">Please wait while we fetch the latest data</div>
-            </div>
-        </div>
-    </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <!-- Fallback CDN sources in case the primary ones fail -->
-    <script>
+</div>
+</div>
+</div>
+<div id="tableContainer">
+<div style="text-align: center; padding: 40px; color: #666;">
+<div style="font-size: 24px; margin-bottom: 10px;">📊</div>
+<div>Loading timesheet data...</div>
+<div style="font-size: 12px; margin-top: 10px; color: #999;">Please wait while we fetch the latest data</div>
+</div>
+</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<!-- Fallback CDN sources in case the primary ones fail -->
+<script>
         // Check if jsPDF loaded successfully, if not try alternative CDN
         if (typeof window.jspdf === 'undefined') {
             const script = document.createElement('script');
@@ -90,7 +90,7 @@
             document.head.appendChild(script);
         }
     </script>
-    <script>
+<script>
         const SHEET_ID = '1_-ZPknnR0N_-iIekrmQE9nKU7Lu2FAA2SQqf2ZXCpYY';
         const RANGE = 'Form Responses 1'; // or 'Sheet1!A1:H'
         const API_KEY = 'AIzaSyBkZ9IVxc5e0s_PJb0ViznAVWUAP-byDWg';
@@ -433,9 +433,43 @@
                 
                 return true;
             });
+            // Apply month filter (if user selected a month via #monthFilter)
+            (function(){
+                const monthValEl = document.getElementById('monthFilter');
+                if (monthValEl && monthValEl.value) {
+                    const parts = monthValEl.value.split('-'); // "YYYY-MM"
+                    if (parts.length === 2) {
+                        const yy = parseInt(parts[0], 10);
+                        const mm = parseInt(parts[1], 10);
+                        filteredRows = filteredRows.filter(row => {
+                            const dStr = normalizeDate(row[dateColIdx] || '');
+                            const d = new Date(dStr);
+                            return !isNaN(d) && d.getFullYear() === yy && (d.getMonth()+1) === mm;
+                        });
+                    }
+                }
+            })();
+
             
             // Group by date and collect all projects with their hours for each date
             const dateSummary = {};
+            // Compute Days Worked per employee (unique dates in filtered rows)
+            const daysWorkedByEmployee = {};
+            filteredRows.forEach(row => {
+                const empName = row[nameColIdx] || '';
+                const dStr = normalizeDate(row[dateColIdx] || '');
+                if (!empName || !dStr) return;
+                if (!daysWorkedByEmployee[empName]) {
+                    daysWorkedByEmployee[empName] = new Set();
+                }
+                // Consider a row a "worked" record if both start and end times are present/valid
+                const st = row[startTimeColIdx] || '';
+                const et = row[endTimeColIdx] || '';
+                if (st && et && st !== 'Invalid Time' && et !== 'Invalid Time') {
+                    daysWorkedByEmployee[empName].add(dStr);
+                }
+            });
+
             
             filteredRows.forEach(row => {
                 const name = row[nameColIdx] || '';
@@ -483,7 +517,45 @@
             
             // Create consolidated report table
             let simpleHtml = '<div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">';
-            simpleHtml += '<h3 style="margin-top: 0; color: #333;">Consolidate Report</h3>';
+            simpleHtml += '<h3 style="margin-top: 0';
+            // Days Worked summary for the selected month
+            (function(){
+                const monthValEl = document.getElementById('monthFilter');
+                if (!monthValEl || !monthValEl.value) return;
+                const monthLabel = new Date(monthValEl.value + '-01').toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+                
+                if (globalFilters.name) {
+                    const cnt = (daysWorkedByEmployee[globalFilters.name]?.size) || 0;
+                    simpleHtml += `
+                        <div style="margin: 10px 0 14px 0; padding: 8px 12px; display:inline-block; border-radius: 8px; background:#e8f4fd; border:1px solid #cfe8ff;">
+                          <strong>Days Worked in ${monthLabel}:</strong> ${cnt}
+                        </div>
+                    `;
+                } else {
+                    const rows = Object.keys(daysWorkedByEmployee).sort().map(emp => {
+                        const cnt = daysWorkedByEmployee[emp]?.size || 0;
+                        return `<tr style="background:#fff;">
+                                  <td style="padding:8px; border:1px solid #ccc;">${emp}</td>
+                                  <td style="padding:8px; border:1px solid #ccc; text-align:center;">${cnt}</td>
+                                </tr>`;
+                    }).join('');
+                    simpleHtml += `
+                        <div style="margin: 10px 0 14px 0;">
+                          <h4 style="margin: 0 0 8px 0; color:#4285f4;">Days Worked in ${monthLabel}</h4>
+                          <table style="width:100%; border-collapse:collapse; margin-top:4px;">
+                            <thead>
+                              <tr style="background:#4285f4; color:#fff;">
+                                <th style="padding:8px; border:1px solid #ccc; text-align:center;">Name</th>
+                                <th style="padding:8px; border:1px solid #ccc; text-align:center;">Days Worked</th>
+                              </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                          </table>
+                        </div>
+                    `;
+                }
+            })();
+       simpleHtml += '<h3 style="margin: 15px 0 10px 0; color: #333;">Consolidate Report</h3>';
             
             if (Object.keys(dateSummary).length === 0) {
                 simpleHtml += '<p>No data found for the selected filters.</p>';
@@ -891,43 +963,30 @@
         });
 
         document.getElementById('downloadPdfBtn').addEventListener('click', function() {
+            // Capture the entire page including navbar and logo
             html2canvas(document.body, {
                 allowTaint: true,
                 useCORS: true,
                 scale: 2,
-                backgroundColor: '#ffffff'
+                backgroundColor: '#f2f2f2'
             }).then(canvas => {
-                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                const imgData = canvas.toDataURL('image/jpeg', 0.7);
                 const pdf = new window.jspdf.jsPDF({
                     orientation: 'landscape',
                     unit: 'pt',
                     format: 'a4'
                 });
-
                 const pageWidth = pdf.internal.pageSize.getWidth();
                 const pageHeight = pdf.internal.pageSize.getHeight();
-                const imgWidth = pageWidth;
+                const imgWidth = pageWidth - 40;
                 const imgHeight = canvas.height * imgWidth / canvas.width;
-
-                let heightLeft = imgHeight;
-                let position = 0;
-
-                // First page
-                pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-                heightLeft -= pageHeight;
-
-                // Extra pages if needed
-                while (heightLeft > 0) {
-                    position = heightLeft - imgHeight;
-                    pdf.addPage();
-                    pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
-                }
-
+                
+                // Add the captured image starting below the title
+                pdf.addImage(imgData, 'PNG', 20, 50, imgWidth, imgHeight);
+                
                 pdf.save('vishruta-timesheet.pdf');
             });
         });
-
 
 
     </script>
