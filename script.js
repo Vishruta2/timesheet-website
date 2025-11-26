@@ -126,48 +126,23 @@ function getFilteredRows() {
     });
 }
 
-// Filter Functions
-function applyNameFilter() {
-    try {
-        // console.log('Name filter changed'); 
-        const select = document.getElementById('nameFilter');
-        globalFilters.name = select.value;
-        updateCurrentView();
-    } catch (e) {
-        alert('Error in applyNameFilter: ' + e.message);
-    }
-}
-
-function applyFromDateFilter() {
-    try {
-        const input = document.getElementById('fromDateFilter');
-        globalFilters.fromDate = input.value;
-        updateCurrentView();
-    } catch (e) {
-        alert('Error in applyFromDateFilter: ' + e.message);
-    }
-}
-
-function applyToDateFilter() {
-    try {
-        const input = document.getElementById('toDateFilter');
-        globalFilters.toDate = input.value;
-        updateCurrentView();
-    } catch (e) {
-        alert('Error in applyToDateFilter: ' + e.message);
-    }
-}
-
 function updateCurrentView() {
     try {
-        console.log('updateCurrentView called. currentView:', currentView);
+        // Sync global filters from DOM elements
+        const nameEl = document.getElementById('nameFilter');
+        const fromEl = document.getElementById('fromDateFilter');
+        const toEl = document.getElementById('toDateFilter');
+
+        if (nameEl) globalFilters.name = nameEl.value;
+        if (fromEl) globalFilters.fromDate = fromEl.value;
+        if (toEl) globalFilters.toDate = toEl.value;
 
         const dashboardContainer = document.getElementById('dashboardContainer');
-        // offsetParent is null if display is none
-        const isDashboardVisible = dashboardContainer && dashboardContainer.offsetParent !== null;
+        // Robust visibility check
+        const style = window.getComputedStyle(dashboardContainer);
+        const isDashboardVisible = style.display !== 'none' && style.visibility !== 'hidden';
 
         if (isDashboardVisible) {
-            console.log('Dashboard is visible. Forcing update.');
             // Sync state just in case
             currentView = 'dashboard';
             updateDashboard();
@@ -175,24 +150,19 @@ function updateCurrentView() {
         }
 
         if (currentView === 'projectSummary') {
-            console.log('Updating Project Summary');
             showProjectSummary();
         } else if (currentView === 'simpleView') {
-            console.log('Updating Simple View');
             showSimpleView();
         } else {
-            console.log('Rendering Table');
             renderTable(allRows);
         }
     } catch (e) {
-        alert('Error in updateCurrentView: ' + e.message);
+        console.error('Error in updateCurrentView: ' + e.message);
     }
 }
 
 // Expose functions to window for inline onchange handlers
-window.applyNameFilter = applyNameFilter;
-window.applyFromDateFilter = applyFromDateFilter;
-window.applyToDateFilter = applyToDateFilter;
+window.updateCurrentView = updateCurrentView;
 
 
 function renderTable(rows, filters = {}) {
@@ -417,22 +387,6 @@ window.applyDateRangeFilter = function (colIdx, value, type) {
     } else if (type === 'end') {
         filters[colIdx + '_end'] = value;
     }
-    renderTable(allRows, filters);
-};
-
-// Global filter functions
-window.applyNameFilter = function () {
-    globalFilters.name = document.getElementById('nameFilter').value;
-    renderTable(allRows, filters);
-};
-
-window.applyFromDateFilter = function () {
-    globalFilters.fromDate = document.getElementById('fromDateFilter').value;
-    renderTable(allRows, filters);
-};
-
-window.applyToDateFilter = function () {
-    globalFilters.toDate = document.getElementById('toDateFilter').value;
     renderTable(allRows, filters);
 };
 
@@ -882,9 +836,9 @@ fetch(url, { signal: controller.signal })
     });
 
 // Event Listeners for Filters
-document.getElementById('nameFilter').addEventListener('change', applyNameFilter);
-document.getElementById('fromDateFilter').addEventListener('change', applyFromDateFilter);
-document.getElementById('toDateFilter').addEventListener('change', applyToDateFilter);
+document.getElementById('nameFilter').addEventListener('change', updateCurrentView);
+document.getElementById('fromDateFilter').addEventListener('change', updateCurrentView);
+document.getElementById('toDateFilter').addEventListener('change', updateCurrentView);
 
 // Event Listeners for Buttons
 document.getElementById('menuToggleBtn').addEventListener('click', function () {
@@ -1099,6 +1053,20 @@ function updateDashboard() {
     const textColor = isDark ? '#e0e0e0' : '#333';
     const gridColor = isDark ? '#444' : '#ddd';
 
+    // Generate Unique Colors for Pie Chart
+    function generateColors(count) {
+        const colors = [];
+        for (let i = 0; i < count; i++) {
+            // Use HSL to generate distinct colors
+            // Hue ranges from 0 to 360
+            const hue = Math.floor((i * 360) / count);
+            colors.push(`hsl(${hue}, 70%, 50%)`);
+        }
+        return colors;
+    }
+
+    const pieColors = generateColors(projectLabels.length);
+
     // Render Project Chart
     const ctxProject = document.getElementById('projectChart').getContext('2d');
     if (projectChartInstance) projectChartInstance.destroy();
@@ -1109,9 +1077,7 @@ function updateDashboard() {
             labels: projectLabels,
             datasets: [{
                 data: projectData,
-                backgroundColor: [
-                    '#4285f4', '#34a853', '#fbbc05', '#ea4335', '#ab47bc', '#00acc1'
-                ]
+                backgroundColor: pieColors
             }]
         },
         options: {

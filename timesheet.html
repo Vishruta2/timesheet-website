@@ -41,7 +41,7 @@
                 <div class="filter-group">
                     <label class="filter-label">Name:</label>
                     <select aria-label="Filter by employee name" class="filter-select" id="nameFilter"
-                        onchange="applyNameFilter()">
+                        onchange="updateCurrentView()">
                         <option value="">All</option>
                     </select>
                 </div>
@@ -49,17 +49,18 @@
                 <div class="filter-group">
                     <label class="filter-label">From Date:</label>
                     <input aria-label="Filter from date" class="filter-select" id="fromDateFilter" max=""
-                        onchange="applyFromDateFilter()" type="date" />
+                        onchange="updateCurrentView()" type="date" />
                 </div>
                 <!-- To Date Filter -->
                 <div class="filter-group">
                     <label class="filter-label">To Date:</label>
                     <input aria-label="Filter to date" class="filter-select" id="toDateFilter" max=""
-                        onchange="applyToDateFilter()" type="date" />
+                        onchange="updateCurrentView()" type="date" />
                 </div>
                 <div class="filter-group">
                     <label class="filter-label">Month:</label>
-                    <input aria-label="Filter by month" class="filter-select" id="monthFilter" type="month" />
+                    <input aria-label="Filter by month" class="filter-select" id="monthFilter"
+                        onchange="updateCurrentView()" type="month" />
                 </div>
             </div>
             <!-- Dropdown Menu -->
