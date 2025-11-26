@@ -70,6 +70,68 @@ function formatDateForDisplay(str) {
     return str;
 }
 
+// Helper to get filtered rows
+function getFilteredRows() {
+    if (!allRows || allRows.length < 2) return [];
+
+    const headerRow = allRows[0];
+    const nameColIdx = headerRow.indexOf('👤 Choose Your Name ');
+    const dateColIdx = headerRow.indexOf('📆 Choose Date');
+
+    return allRows.slice(1).filter(row => {
+        // Apply name filter
+        if (globalFilters.name && row[nameColIdx] !== globalFilters.name) {
+            return false;
+        }
+
+        // Apply from date filter
+        if (globalFilters.fromDate) {
+            const dateStr = row[dateColIdx];
+            if (dateStr) {
+                const normalizedDate = normalizeDate(dateStr);
+                if (normalizedDate < globalFilters.fromDate) {
+                    return false;
+                }
+            }
+        }
+
+        // Apply to date filter
+        if (globalFilters.toDate) {
+            const dateStr = row[dateColIdx];
+            if (dateStr) {
+                const normalizedDate = normalizeDate(dateStr);
+                if (normalizedDate > globalFilters.toDate) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    });
+}
+
+// Filter Functions
+function applyNameFilter() {
+    const select = document.getElementById('nameFilter');
+    globalFilters.name = select.value;
+    renderTable(allRows);
+    updateDashboard();
+}
+
+function applyFromDateFilter() {
+    const input = document.getElementById('fromDateFilter');
+    globalFilters.fromDate = input.value;
+    renderTable(allRows);
+    updateDashboard();
+}
+
+function applyToDateFilter() {
+    const input = document.getElementById('toDateFilter');
+    globalFilters.toDate = input.value;
+    renderTable(allRows);
+    updateDashboard();
+}
+
 function renderTable(rows, filters = {}) {
     if (!rows || rows.length === 0) {
         document.getElementById('tableContainer').innerHTML = 'No data found or data format incorrect.';
@@ -1163,7 +1225,9 @@ function updateDashboard() {
     const projectHours = {};
     const dailyHours = {};
 
-    allRows.slice(1).forEach(row => {
+    const rowsToProcess = getFilteredRows();
+
+    rowsToProcess.forEach(row => {
         const project = row[projectColIdx] || 'Unknown';
         const date = normalizeDate(row[dateColIdx]);
         const start = row[startTimeColIdx];
