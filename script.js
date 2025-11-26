@@ -42,6 +42,7 @@ let globalFilters = {
     fromDate: '',
     toDate: ''
 };
+let currentView = 'table'; // Default view
 
 // Helper to normalize date to YYYY-MM-DD (for filtering)
 function normalizeDate(str) {
@@ -106,31 +107,93 @@ function getFilteredRows() {
             }
         }
 
+        // Apply month filter
+        const monthValEl = document.getElementById('monthFilter');
+        if (monthValEl && monthValEl.value) {
+            const parts = monthValEl.value.split('-'); // "YYYY-MM"
+            if (parts.length === 2) {
+                const yy = parseInt(parts[0], 10);
+                const mm = parseInt(parts[1], 10);
+                const dStr = normalizeDate(row[dateColIdx] || '');
+                const d = new Date(dStr);
+                if (isNaN(d) || d.getFullYear() !== yy || (d.getMonth() + 1) !== mm) {
+                    return false;
+                }
+            }
+        }
+
         return true;
     });
 }
 
 // Filter Functions
 function applyNameFilter() {
-    const select = document.getElementById('nameFilter');
-    globalFilters.name = select.value;
-    renderTable(allRows);
-    updateDashboard();
+    try {
+        // console.log('Name filter changed'); 
+        const select = document.getElementById('nameFilter');
+        globalFilters.name = select.value;
+        updateCurrentView();
+    } catch (e) {
+        alert('Error in applyNameFilter: ' + e.message);
+    }
 }
 
 function applyFromDateFilter() {
-    const input = document.getElementById('fromDateFilter');
-    globalFilters.fromDate = input.value;
-    renderTable(allRows);
-    updateDashboard();
+    try {
+        const input = document.getElementById('fromDateFilter');
+        globalFilters.fromDate = input.value;
+        updateCurrentView();
+    } catch (e) {
+        alert('Error in applyFromDateFilter: ' + e.message);
+    }
 }
 
 function applyToDateFilter() {
-    const input = document.getElementById('toDateFilter');
-    globalFilters.toDate = input.value;
-    renderTable(allRows);
-    updateDashboard();
+    try {
+        const input = document.getElementById('toDateFilter');
+        globalFilters.toDate = input.value;
+        updateCurrentView();
+    } catch (e) {
+        alert('Error in applyToDateFilter: ' + e.message);
+    }
 }
+
+function updateCurrentView() {
+    try {
+        console.log('updateCurrentView called. currentView:', currentView);
+
+        const dashboardContainer = document.getElementById('dashboardContainer');
+        // offsetParent is null if display is none
+        const isDashboardVisible = dashboardContainer && dashboardContainer.offsetParent !== null;
+
+        if (isDashboardVisible) {
+            console.log('Dashboard is visible. Forcing update.');
+            // Sync state just in case
+            currentView = 'dashboard';
+            updateDashboard();
+            return;
+        }
+
+        if (currentView === 'projectSummary') {
+            console.log('Updating Project Summary');
+            showProjectSummary();
+        } else if (currentView === 'simpleView') {
+            console.log('Updating Simple View');
+            showSimpleView();
+        } else {
+            console.log('Rendering Table');
+            renderTable(allRows);
+        }
+    } catch (e) {
+        alert('Error in updateCurrentView: ' + e.message);
+    }
+}
+
+// Expose functions to window for inline onchange handlers
+window.applyNameFilter = applyNameFilter;
+window.applyFromDateFilter = applyFromDateFilter;
+window.applyToDateFilter = applyToDateFilter;
+
 
 function renderTable(rows, filters = {}) {
     if (!rows || rows.length === 0) {
@@ -171,9 +234,6 @@ function renderTable(rows, filters = {}) {
                 }
             }
         }
-
-
-
         return true;
     });
 
@@ -387,53 +447,7 @@ function showSimpleView() {
     const endTimeColIdx = headerRow.indexOf('⏰ Choose Task End Time');
 
     // Apply the same filters as the main table
-    let filteredRows = allRows.slice(1).filter((row, rowIdx) => {
-        // Apply name filter
-        if (globalFilters.name && row[nameColIdx] !== globalFilters.name) {
-            return false;
-        }
-
-        // Apply from date filter
-        if (globalFilters.fromDate) {
-            const dateStr = row[dateColIdx];
-            if (dateStr) {
-                const normalizedDate = normalizeDate(dateStr);
-                if (normalizedDate < globalFilters.fromDate) {
-                    return false;
-                }
-            }
-        }
-
-        // Apply to date filter
-        if (globalFilters.toDate) {
-            const dateStr = row[dateColIdx];
-            if (dateStr) {
-                const normalizedDate = normalizeDate(dateStr);
-                if (normalizedDate > globalFilters.toDate) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    });
-    // Apply month filter (if user selected a month via #monthFilter)
-    (function () {
-        const monthValEl = document.getElementById('monthFilter');
-        if (monthValEl && monthValEl.value) {
-            const parts = monthValEl.value.split('-'); // "YYYY-MM"
-            if (parts.length === 2) {
-                const yy = parseInt(parts[0], 10);
-                const mm = parseInt(parts[1], 10);
-                filteredRows = filteredRows.filter(row => {
-                    const dStr = normalizeDate(row[dateColIdx] || '');
-                    const d = new Date(dStr);
-                    return !isNaN(d) && d.getFullYear() === yy && (d.getMonth() + 1) === mm;
-                });
-            }
-        }
-    })();
-
+    let filteredRows = getFilteredRows();
 
     // Group by date and collect all projects with their hours for each date
     const dateSummary = {};
@@ -617,7 +631,7 @@ function showSimpleView() {
             sortedProjects.forEach(([projectCode, minutes], projectIndex) => {
                 const hours = Math.floor(minutes / 60);
                 const mins = Math.round(minutes % 60);
-                const timeDisplay = hours + (mins > 0 ? (':' + mins.toString().padStart(2, '0')) : '');
+                const timeDisplay = hours + (mins > 0 ? (':' + minutes.toString().padStart(2, '0')) : '');
                 // Alternate background colors for project rows
                 const projectRowBackground = projectIndex % 2 === 0 ? '#e9ecef' : '#f8f9fa';
                 projectsHtml += `<tr style="background: ${projectRowBackground};">
@@ -685,36 +699,7 @@ function showProjectSummary() {
     const endTimeColIdx = headerRow.indexOf('⏰ Choose Task End Time');
 
     // Apply the same filters as the main table
-    let filteredRows = allRows.slice(1).filter((row, rowIdx) => {
-        // Apply name filter
-        if (globalFilters.name && row[nameColIdx] !== globalFilters.name) {
-            return false;
-        }
-
-        // Apply from date filter
-        if (globalFilters.fromDate) {
-            const dateStr = row[dateColIdx];
-            if (dateStr) {
-                const normalizedDate = normalizeDate(dateStr);
-                if (normalizedDate < globalFilters.fromDate) {
-                    return false;
-                }
-            }
-        }
-
-        // Apply to date filter
-        if (globalFilters.toDate) {
-            const dateStr = row[dateColIdx];
-            if (dateStr) {
-                const normalizedDate = normalizeDate(dateStr);
-                if (normalizedDate > globalFilters.toDate) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    });
+    let filteredRows = getFilteredRows();
 
     // Group by project code and calculate total hours
     const projectSummary = {};
@@ -850,187 +835,6 @@ function populateFilterDropdowns() {
         nameFilter.appendChild(option);
     });
 }
-
-
-
-// Function to show project summary
-function showProjectSummary() {
-    if (!allRows || allRows.length < 2) return;
-
-    const headerRow = allRows[0];
-    const nameColIdx = headerRow.indexOf('👤 Choose Your Name ');
-    const dateColIdx = headerRow.indexOf('📆 Choose Date');
-    const projectColIdx = headerRow.indexOf('📁 Choose Project Code');
-    const startTimeColIdx = headerRow.indexOf('⏰ Choose Task Start Time');
-    const endTimeColIdx = headerRow.indexOf('⏰ Choose Task End Time');
-
-    // Apply the same filters as the main table
-    let filteredRows = allRows.slice(1).filter((row, rowIdx) => {
-        // Apply name filter
-        if (globalFilters.name && row[nameColIdx] !== globalFilters.name) {
-            return false;
-        }
-
-        // Apply from date filter
-        if (globalFilters.fromDate) {
-            const dateStr = row[dateColIdx];
-            if (dateStr) {
-                const normalizedDate = normalizeDate(dateStr);
-                if (normalizedDate < globalFilters.fromDate) {
-                    return false;
-                }
-            }
-        }
-
-        // Apply to date filter
-        if (globalFilters.toDate) {
-            const dateStr = row[dateColIdx];
-            if (dateStr) {
-                const normalizedDate = normalizeDate(dateStr);
-                if (normalizedDate > globalFilters.toDate) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    });
-
-    // Group by project code and calculate total hours
-    const projectSummary = {};
-
-    filteredRows.forEach(row => {
-        const projectCode = row[projectColIdx] || 'Unknown Project';
-        const start = row[startTimeColIdx] || '';
-        const end = row[endTimeColIdx] || '';
-
-        function parseTime12h(t) {
-            const [time, modifier] = t.split(' ');
-            let [hours, minutes, seconds] = time.split(':').map(Number);
-            if (modifier === 'PM' && hours !== 12) hours += 12;
-            if (modifier === 'AM' && hours === 12) hours = 0;
-            return hours * 60 + minutes + (seconds ? seconds / 60 : 0);
-        }
-
-        if (start && end) {
-            const startMins = parseTime12h(start);
-            const endMins = parseTime12h(end);
-            let diffMins = endMins - startMins;
-            if (diffMins < 0) diffMins += 24 * 60;
-
-            if (!projectSummary[projectCode]) {
-                projectSummary[projectCode] = 0;
-            }
-            projectSummary[projectCode] += diffMins;
-        }
-    });
-
-    // Create summary table
-    let summaryHtml = '<div style="margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;">';
-    summaryHtml += '<h3 style="margin-top: 0; color: #333;">Project Summary</h3>';
-
-    if (Object.keys(projectSummary).length === 0) {
-        summaryHtml += '<p>No data found for the selected filters.</p>';
-    } else {
-        summaryHtml += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
-        summaryHtml += '<thead><tr style="background: #4285f4; color: white;">';
-        summaryHtml += '<th style="padding: 10px; border: 1px solid #ccc; text-align: center;">Project Code</th>';
-        summaryHtml += '<th style="padding: 10px; border: 1px solid #ccc; text-align: center;">Total Hours</th>';
-        summaryHtml += '</tr></thead><tbody>';
-
-        let grandTotal = 0;
-
-        // Sort projects in the specified order: VES, VEB, INDIRECT, NO-WORK
-        const sortedProjects = Object.entries(projectSummary).sort(([a], [b]) => {
-            const order = { 'VES': 1, 'VEB': 2, 'INDIRECT': 3, 'NO-WORK': 4 };
-            const aTrimmed = a.trim().toUpperCase();
-            const bTrimmed = b.trim().toUpperCase();
-
-            // Check if project names start with our target strings
-            const aStartsWithVES = aTrimmed.startsWith('VES');
-            const aStartsWithVEB = aTrimmed.startsWith('VEB');
-            const aStartsWithINDIRECT = aTrimmed.startsWith('INDIRECT');
-            const aStartsWithNOWORK = aTrimmed.startsWith('NO-WORK');
-
-            const bStartsWithVES = bTrimmed.startsWith('VES');
-            const bStartsWithVEB = bTrimmed.startsWith('VEB');
-            const bStartsWithINDIRECT = bTrimmed.startsWith('INDIRECT');
-            const bStartsWithNOWORK = bTrimmed.startsWith('NO-WORK');
-
-            // Assign priorities
-            let aOrder = 5;
-            if (aStartsWithVES) aOrder = 1;
-            else if (aStartsWithVEB) aOrder = 2;
-            else if (aStartsWithINDIRECT) aOrder = 3;
-            else if (aStartsWithNOWORK) aOrder = 4;
-
-            let bOrder = 5;
-            if (bStartsWithVES) bOrder = 1;
-            else if (bStartsWithVEB) bOrder = 2;
-            else if (bStartsWithINDIRECT) bOrder = 3;
-            else if (bStartsWithNOWORK) bOrder = 4;
-
-            // If both are in the same priority group, sort by number if applicable
-            if (aOrder === bOrder && aOrder <= 2) { // VES and VEB groups
-                const aNumber = parseInt(aTrimmed.match(/\d+$/)?.[0] || '0');
-                const bNumber = parseInt(bTrimmed.match(/\d+$/)?.[0] || '0');
-                if (aNumber !== bNumber) {
-                    return aNumber - bNumber;
-                }
-            }
-
-            return aOrder - bOrder;
-        });
-
-        sortedProjects.forEach(([project, totalMinutes], i) => {
-            const hours = Math.floor(totalMinutes / 60);
-            const minutes = Math.round(totalMinutes % 60);
-            const timeDisplay = hours + (minutes > 0 ? (':' + minutes.toString().padStart(2, '0')) : '');
-            grandTotal += totalMinutes;
-
-            summaryHtml += `<tr class="table-row-anim" style="background: #fff; animation-delay: ${i * 0.05}s;">`;
-            summaryHtml += `<td style="padding: 10px; border: 1px solid #ccc;">${project}</td>`;
-            summaryHtml += `<td style="padding: 10px; border: 1px solid #ccc;">${timeDisplay}</td>`;
-            summaryHtml += '</tr>';
-        });
-
-        // Add grand total row
-        const grandTotalHours = Math.floor(grandTotal / 60);
-        const grandTotalMinutes = Math.round(grandTotal % 60);
-        const grandTotalDisplay = grandTotalHours + (grandTotalMinutes > 0 ? (':' + grandTotalMinutes.toString().padStart(2, '0')) : '');
-
-        summaryHtml += '<tr style="background: #e8f4fd; font-weight: bold;">';
-        summaryHtml += '<td style="padding: 10px; border: 1px solid #ccc;">Total</td>';
-        summaryHtml += `<td style="padding: 10px; border: 1px solid #ccc;">${grandTotalDisplay}</td>`;
-        summaryHtml += '</tr>';
-
-        summaryHtml += '</tbody></table>';
-    }
-
-    summaryHtml += '</div>';
-
-    // Show the summary in a modal or replace the table
-    document.getElementById('tableContainer').innerHTML = summaryHtml;
-}
-
-// Function to populate filter dropdowns
-function populateFilterDropdowns() {
-    if (!allRows || allRows.length < 2) return;
-
-    const headerRow = allRows[0];
-    const nameColIdx = headerRow.indexOf('👤 Choose Your Name ');
-
-    // Populate name filter
-    const nameFilter = document.getElementById('nameFilter');
-    const uniqueNames = [...new Set(allRows.slice(1).map(row => row[nameColIdx] || '').filter(name => name))];
-    uniqueNames.forEach(name => {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        nameFilter.appendChild(option);
-    });
-}
-
 
 function setDateLimits() {
     const today = new Date().toISOString().split('T')[0]; // Get current date in YYYY-MM-DD format
@@ -1077,7 +881,12 @@ fetch(url, { signal: controller.signal })
         document.getElementById('tableContainer').innerHTML = `<div style="color: red; padding: 20px; text-align: center;">${errorMsg}<br><button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; cursor: pointer;">Retry</button></div>`;
     });
 
-// Event Listeners
+// Event Listeners for Filters
+document.getElementById('nameFilter').addEventListener('change', applyNameFilter);
+document.getElementById('fromDateFilter').addEventListener('change', applyFromDateFilter);
+document.getElementById('toDateFilter').addEventListener('change', applyToDateFilter);
+
+// Event Listeners for Buttons
 document.getElementById('menuToggleBtn').addEventListener('click', function () {
     const dropdown = document.getElementById('menuDropdown');
     dropdown.classList.toggle('show');
@@ -1101,6 +910,7 @@ document.addEventListener('click', function (event) {
 });
 
 document.getElementById('projectSummaryBtn').addEventListener('click', function () {
+    currentView = 'projectSummary';
     showProjectSummary();
     document.getElementById('dashboardContainer').style.display = 'none';
     document.getElementById('tableContainer').style.display = 'block';
@@ -1111,6 +921,7 @@ document.getElementById('projectSummaryBtn').addEventListener('click', function 
 
 // Simple view button functionality
 document.getElementById('simpleViewBtn').addEventListener('click', function () {
+    currentView = 'simpleView';
     showSimpleView();
     document.getElementById('dashboardContainer').style.display = 'none';
     document.getElementById('tableContainer').style.display = 'block';
@@ -1121,6 +932,7 @@ document.getElementById('simpleViewBtn').addEventListener('click', function () {
 
 // Dashboard button functionality
 document.getElementById('dashboardBtn').addEventListener('click', function () {
+    currentView = 'dashboard';
     document.getElementById('tableContainer').style.display = 'none';
     document.getElementById('dashboardContainer').style.display = 'block';
     updateDashboard();
@@ -1138,6 +950,14 @@ document.getElementById('downloadPdfBtn').addEventListener('click', function () 
     window.print();
 });
 
+// Month filter functionality
+const monthFilter = document.getElementById('monthFilter');
+if (monthFilter) {
+    monthFilter.addEventListener('change', function () {
+        updateCurrentView();
+    });
+}
+
 // --- New Features Logic ---
 
 // 1. Dark Mode Toggle
@@ -1151,26 +971,31 @@ if (currentTheme === 'dark') {
     themeToggleBtn.textContent = '☀️';
 }
 
-themeToggleBtn.addEventListener('click', () => {
-    if (body.getAttribute('data-theme') === 'dark') {
-        body.removeAttribute('data-theme');
-        themeToggleBtn.textContent = '🌙';
-        localStorage.setItem('theme', 'light');
-    } else {
-        body.setAttribute('data-theme', 'dark');
-        themeToggleBtn.textContent = '☀️';
-        localStorage.setItem('theme', 'dark');
-    }
-    // Update charts if dashboard is visible
-    if (document.getElementById('dashboardContainer').style.display === 'block') {
-        updateDashboard();
-    }
-});
+if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+        if (body.getAttribute('data-theme') === 'dark') {
+            body.removeAttribute('data-theme');
+            themeToggleBtn.textContent = '🌙';
+            localStorage.setItem('theme', 'light');
+        } else {
+            body.setAttribute('data-theme', 'dark');
+            themeToggleBtn.textContent = '☀️';
+            localStorage.setItem('theme', 'dark');
+        }
+        // Update charts if dashboard is visible
+        if (document.getElementById('dashboardContainer').style.display === 'block') {
+            updateDashboard();
+        }
+    });
+}
 
 // 2. Export to CSV
-document.getElementById('exportCsvBtn').addEventListener('click', function () {
-    exportToCSV(allRows);
-});
+const exportCsvBtn = document.getElementById('exportCsvBtn');
+if (exportCsvBtn) {
+    exportCsvBtn.addEventListener('click', function () {
+        exportToCSV(allRows);
+    });
+}
 
 function exportToCSV(rows) {
     if (!rows || rows.length === 0) return;
@@ -1179,13 +1004,6 @@ function exportToCSV(rows) {
 
     // Add header
     csvContent += rows[0].join(",") + "\r\n";
-
-    // Add rows (apply current filters if needed, but for now exporting all loaded data or filtered data)
-    // Let's export currently filtered data for better UX
-    // Re-using the filtering logic is complex without refactoring 'renderTable' to return data.
-    // For simplicity, we'll export 'allRows' but strictly we should export what user sees.
-    // To export what user sees, we can capture 'filteredRows' from renderTable if we refactor.
-    // For now, let's export allRows to ensure data completeness.
 
     rows.slice(1).forEach(row => {
         const rowStr = row.map(cell => {
@@ -1214,6 +1032,13 @@ let dailyChartInstance = null;
 
 function updateDashboard() {
     if (!allRows || allRows.length < 2) return;
+
+    // Debug: Update title to show it's refreshing
+    const title = document.querySelector('#dashboardContainer .chart-title');
+    if (title) {
+        const rowsToProcess = getFilteredRows();
+        title.innerHTML = `Analytics Dashboard <span style="font-size: 12px; font-weight: normal;">(Showing ${rowsToProcess.length} rows)</span>`;
+    }
 
     const headerRow = allRows[0];
     const projectColIdx = headerRow.indexOf('📁 Choose Project Code');
